@@ -12,7 +12,12 @@
   (-list-files [this d])
   (-delete-file [this f]))
 
-(def ^:dynamic *io-ops*)
+(def ^:dynamic ^:private *io-ops*)
+
+(defn set-io-ops! 
+  [io-ops]
+  (set! *io-ops* io-ops)
+  nil)
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
