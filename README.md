@@ -4,6 +4,8 @@ A set of host abstractions mimicking similar facilities available in Clojure for
 
 ## Usage
 
+Here is an example using Abio with [Node bindings](https://github.com/abiocljs/abio-node):
+
 ```
 $ lumo -qc abio.jar:abio-node.jar
 cljs.user=> (require 'abio.core '[abio.io :as io] 'abio.node)
