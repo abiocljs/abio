@@ -10,7 +10,11 @@ cljs.user=> (require 'abio.core '[abio.io :as io] 'abio.node)
 nil
 cljs.user=> (abio.core/set-bindings! (abio.node/bindings))
 nil
-cljs.user=> (io/directory? "/Users")
+cljs.user=> (def users-dir (io/as-file "/Users"))
+#'cljs.user/users-dir
+cljs.user=> users-dir
+#abio.io.File{:path "/Users"}
+cljs.user=> (io/directory? users-dir)
 true
 cljs.user=> (io/directory? "/etc/hosts")
 false
