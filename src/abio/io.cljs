@@ -86,7 +86,7 @@
   (as-url [_] nil)
 
   string
-  (as-file [s] (File. s))
+  (as-file [s] (->File s))
   (as-url [s] (Uri. s))
 
   File
