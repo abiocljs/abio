@@ -5,7 +5,7 @@ A set of host abstractions mimicking similar facilities available in Clojure for
 ## Usage
 
 ```
-$ lumo -qc abio-0.1.0.jar:abio-node-0.1.0.jar
+$ lumo -qc abio.jar:abio-node.jar
 cljs.user=> (require 'abio.core '[abio.io :as io] 'abio.node)
 nil
 cljs.user=> (abio.core/set-bindings! (abio.node/bindings))
