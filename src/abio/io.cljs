@@ -10,12 +10,16 @@
 
 (defn- io-ops
   []
-  (:abio/io-ops abio.core/*bindings*))
+  (or (:abio/io-ops abio.core/*bindings*)
+      (throw (ex-info "abio bindings not set" {}))))
 
 (defprotocol IIOOps
   (-directory? [this f])
   (-list-files [this d])
-  (-delete-file [this f]))
+  (-delete-file [this f])
+  (-file-reader-open [this path encoding])
+  (-file-reader-read [this reader])
+  (-file-reader-close [this reader]))
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
@@ -110,8 +114,7 @@
 
   File
   (make-reader [file opts]
-    ; TODO
-    )
+    (-file-reader-open (io-ops) (:path file) (:encoding opts)))
   (make-writer [file opts]
     ; TODO
     )
@@ -221,3 +224,39 @@
   [f content & opts]
   (with-open [w (apply writer f opts)]
     (-write w (str content))))
+
+(defrecord BufferedReader [raw-read raw-close buffer pos]
+  IReader
+  (-read [_]
+    (if-some [buffered @buffer]
+      (do
+        (reset! buffer nil)
+        (subs buffered @pos))
+      (raw-read)))
+  IBufferedReader
+  (-read-line [this]
+    (if-some [buffered @buffer]
+      (if-some [n (string/index-of buffered "\n" @pos)]
+        (let [rv (subs buffered @pos n)]
+          (reset! pos (inc n))
+          rv)
+        (if-some [new-chars (raw-read)]
+          (do
+            (reset! buffer (str (subs buffered @pos) new-chars))
+            (reset! pos 0)
+            (recur this))
+          (do
+            (reset! buffer nil)
+            (let [rv (subs buffered @pos)]
+              (if (= rv "")
+                nil
+                rv)))))
+      (if-some [new-chars (raw-read)]
+        (do
+          (reset! buffer new-chars)
+          (reset! pos 0)
+          (recur this))
+        nil)))
+  IClosable
+  (-close [_]
+    (raw-close)))

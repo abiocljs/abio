@@ -18,6 +18,10 @@ cljs.user=> (io/directory? users-dir)
 true
 cljs.user=> (io/directory? "/etc/hosts")
 false
+cljs.user=> (def r (io/reader "/usr/share/dict/words" :encoding "UTF8"))
+#'cljs.user/r
+cljs.user=> (take 8 (io/line-seq r))
+("A" "a" "aa" "aal" "aalii" "aam" "Aani" "aardvark")
 ```
 
 ## License
