@@ -1,10 +1,12 @@
-(ns abio.shell)
+(ns abio.shell
+  (:require-macros 
+    [abio.shell])
+  (:require 
+    [abio.core]))
 
 (defprotocol IShellOps
   ; TODO
   )
-
-(def ^:dynamic *shell-ops*)
 
 (def ^:dynamic *sh-dir* nil)
 

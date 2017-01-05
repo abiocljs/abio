@@ -2,22 +2,20 @@
   (:require-macros
     [abio.io :refer [with-open]])
   (:require
+    [abio.core]
     [clojure.string :as string])
   (:import
     (goog.string StringBuffer)
     (goog Uri)))
 
+(defn- io-ops
+  []
+  (:abio/io-ops abio.core/*bindings*))
+
 (defprotocol IIOOps
   (-directory? [this f])
   (-list-files [this d])
   (-delete-file [this f]))
-
-(def ^:dynamic ^:private *io-ops*)
-
-(defn set-io-ops! 
-  [io-ops]
-  (set! *io-ops* io-ops)
-  nil)
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
@@ -176,12 +174,12 @@
 (defn delete-file
   "Delete file f."
   [f]
-  (-delete-file *io-ops* (:path (as-file f))))
+  (-delete-file (io-ops) (:path (as-file f))))
 
 (defn ^boolean directory?
   "Checks if dir is a directory."
   [dir]
-  (-directory? *io-ops* (:path (as-file dir))))
+  (-directory? (io-ops) (:path (as-file dir))))
 
 (defn read-line
   "Reads the next line from the current value of abio.io/*in*"
@@ -199,9 +197,9 @@
   "A tree seq on files"
   [dir]
   (tree-seq
-    (fn [f] (-directory? *io-ops* (:path f)))
+    (fn [f] (-directory? (io-ops) (:path f)))
     (fn [d] (map as-file
-              (-list-files *io-ops* (:path d))))
+              (-list-files (io-ops) (:path d))))
     (as-file dir)))
 
 (defn slurp
