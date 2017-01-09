@@ -207,7 +207,7 @@
 
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
-  See planck.io/reader for a complete list of supported arguments."
+  See abio.io/reader for a complete list of supported arguments."
   [f & opts]
   (with-open [r (apply reader f opts)]
     (let [sb (StringBuffer.)]
@@ -220,7 +220,7 @@
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content, then
-  closes f. Options passed to planck.io/writer."
+  closes f. Options passed to abio.io/writer."
   [f content & opts]
   (with-open [w (apply writer f opts)]
     (-write w (str content))))
