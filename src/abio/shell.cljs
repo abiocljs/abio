@@ -2,7 +2,7 @@
   (:require-macros 
     [abio.shell])
   (:require 
-    [abio.core]))
+    [abio.core :refer [*shell-bindings*]]))
 
 (defprotocol IShellOps
   ; TODO

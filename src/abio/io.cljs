@@ -2,18 +2,13 @@
   (:require-macros
     [abio.io :refer [with-open]])
   (:require
-    [abio.core]
+    [abio.core :refer [*io-bindings*]]
     [clojure.string :as string])
   (:import
     (goog.string StringBuffer)
     (goog Uri)))
 
-(defn- io-ops
-  []
-  (or (:abio/io-ops abio.core/*bindings*)
-      (throw (ex-info "abio bindings not set" {}))))
-
-(defprotocol IIOOps
+(defprotocol IBindings
   (-directory? [this f])
   (-list-files [this d])
   (-delete-file [this f])
@@ -114,7 +109,7 @@
 
   File
   (make-reader [file opts]
-    (-file-reader-open (io-ops) (:path file) (:encoding opts)))
+    (-file-reader-open *io-bindings* (:path file) (:encoding opts)))
   (make-writer [file opts]
     ; TODO
     )
@@ -177,12 +172,12 @@
 (defn delete-file
   "Delete file f."
   [f]
-  (-delete-file (io-ops) (:path (as-file f))))
+  (-delete-file *io-bindings* (:path (as-file f))))
 
 (defn ^boolean directory?
   "Checks if dir is a directory."
   [dir]
-  (-directory? (io-ops) (:path (as-file dir))))
+  (-directory? *io-bindings* (:path (as-file dir))))
 
 (defn read-line
   "Reads the next line from the current value of abio.io/*in*"
@@ -200,9 +195,9 @@
   "A tree seq on files"
   [dir]
   (tree-seq
-    (fn [f] (-directory? (io-ops) (:path f)))
+    (fn [f] (-directory? *io-bindings* (:path f)))
     (fn [d] (map as-file
-              (-list-files (io-ops) (:path d))))
+              (-list-files *io-bindings* (:path d))))
     (as-file dir)))
 
 (defn slurp
