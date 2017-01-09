@@ -224,39 +224,3 @@
   [f content & opts]
   (with-open [w (apply writer f opts)]
     (-write w (str content))))
-
-(defrecord BufferedReader [raw-read raw-close buffer pos]
-  IReader
-  (-read [_]
-    (if-some [buffered @buffer]
-      (do
-        (reset! buffer nil)
-        (subs buffered @pos))
-      (raw-read)))
-  IBufferedReader
-  (-read-line [this]
-    (if-some [buffered @buffer]
-      (if-some [n (string/index-of buffered "\n" @pos)]
-        (let [rv (subs buffered @pos n)]
-          (reset! pos (inc n))
-          rv)
-        (if-some [new-chars (raw-read)]
-          (do
-            (reset! buffer (str (subs buffered @pos) new-chars))
-            (reset! pos 0)
-            (recur this))
-          (do
-            (reset! buffer nil)
-            (let [rv (subs buffered @pos)]
-              (if (= rv "")
-                nil
-                rv)))))
-      (if-some [new-chars (raw-read)]
-        (do
-          (reset! buffer new-chars)
-          (reset! pos 0)
-          (recur this))
-        nil)))
-  IClosable
-  (-close [_]
-    (raw-close)))
