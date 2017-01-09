@@ -4,9 +4,8 @@
   (:require 
     [abio.core :refer [*shell-bindings*]]))
 
-(defprotocol IShellOps
-  ; TODO
-  )
+(defprotocol IBindings
+  (-sh [this args]))
 
 (def ^:dynamic *sh-dir* nil)
 
@@ -39,5 +38,4 @@
     :err  => sub-process's stderr (String via platform default encoding),
   otherwise it throws an exception"
   [& args]
-  ; TODO
-  )
+  (-sh *shell-bindings* args))
