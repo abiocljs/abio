@@ -31,7 +31,7 @@
            name (for example \"UTF-8\" or \"ISO-8859-1\") to convert
            the sub-process's stdout to a String which is returned.
   :env     override the process env with a map of String: String.
-  :dir     override the process dir with a String or planck.io/File.
+  :dir     override the process dir with a String or abio.io/File.
   if the command can be launched, sh returns a map of
     :exit => sub-process's exit code
     :out  => sub-process's stdout (as String)
