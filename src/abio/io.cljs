@@ -13,6 +13,7 @@
   (-list-files [this d])
   (-delete-file [this f])
   (-file-reader-open [this path encoding])
+  (-file-async-reader-open [this path encoding])
   (-file-reader-read [this reader])
   (-file-reader-close [this reader]))
 
@@ -24,9 +25,21 @@
 (defprotocol IClosable
   (-close [this]))
 
+(defprotocol IWriter
+  "Protocol for writing."
+  (-write [this] "Writes output to a file."))
+
+(defprotocol IAsyncWriter
+  "Protocol for writing."
+  (-write [this cb] "Writes output to a file."))
+
 (defprotocol IReader
   "Protocol for reading."
   (-read [this] "Returns available characters as a string or nil if EOF."))
+
+(defprotocol IAsyncReader
+  "Protocol for reading."
+  (-read [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
 
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
@@ -60,6 +73,8 @@
     reader, writer, input-stream, and output-stream."
   (make-reader [x opts] "Creates an IReader. See also IOFactory docs.")
   (make-writer [x opts] "Creates an IWriter. See also IOFactory docs.")
+  (make-async-reader [x opts] "Creates an IAsyncReader. See also IOFactory docs.")
+  (make-async-writer [x opts] "Creates an IAsyncWriter. See also IOFactory docs.")
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
@@ -100,6 +115,8 @@
   string
   (make-reader [s opts]
     (make-reader (as-url-or-file s) opts))
+  (make-async-reader [s opts]
+    (make-async-reader (as-url-or-file s) opts))
   (make-writer [s opts]
     (make-writer (as-url-or-file s) opts))
   (make-input-stream [s opts]
@@ -110,6 +127,8 @@
   File
   (make-reader [file opts]
     (-file-reader-open *io-bindings* (:path file) (:encoding opts)))
+  (make-async-reader [file opts]
+    (-file-async-reader-open *io-bindings* (:path file) (:encoding opts)))
   (make-writer [file opts]
     ; TODO
     )
@@ -142,6 +161,11 @@
   "Attempts to coerce its argument into an open IBufferedReader."
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
+
+(defn async-reader
+  "Attempts to coerce its argument into an open IAsyncReader."
+  [x & opts]
+  (make-async-reader x (when opts (apply hash-map opts))))
 
 (defn writer
   "Attempts to coerce its argument into an open IWriter."
