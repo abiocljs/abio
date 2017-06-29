@@ -13,7 +13,7 @@
   (-list-files [this d])
   (-delete-file [this f])
   (-file-reader-open [this path encoding])
-  (-file-async-reader-open [this path encoding])
+  (-async-file-reader-open [this path encoding])
   (-file-reader-read [this reader])
   (-file-reader-close [this reader]))
 
@@ -30,20 +30,24 @@
   (-write [this] "Writes output to a file."))
 
 (defprotocol IAsyncWriter
-  "Protocol for writing."
-  (-write [this cb] "Writes output to a file."))
+  "Protocol for asynchronous writing."
+  (-write [this] "Returns a channel that eventually may contain an error, or nothing, depending on the outcome of the write."))
 
 (defprotocol IReader
   "Protocol for reading."
   (-read [this] "Returns available characters as a string or nil if EOF."))
 
-(defprotocol IAsyncReader
-  "Protocol for reading."
-  (-read [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
-
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
   (-read-line [this] "Reads the next line."))
+
+(defprotocol IAsyncReader
+  "Protocol for asynchronous reading."
+  (-read [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
+
+(defprotocol IAsyncBufferedReader
+  "Protocol for asynchronously reading line-based content."
+  (-read-line [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
 
 (defprotocol IInputStream
   "Protocol for reading binary data."
@@ -52,6 +56,7 @@
 (defprotocol IOutputStream
   "Protocol for writing binary data."
   (-write-bytes [this byte-array] "Writes byte array.")
+
   (-flush-bytes [this] "Flushes output."))
 
 (defprotocol Coercions
@@ -105,7 +110,6 @@
   (as-file [f] f)
   (as-url [f] (build-uri :file nil nil (:path f) nil)))
 
-
 (defn- as-url-or-file [f]
   (if (string/starts-with? f "http")
     (as-url f)
@@ -119,6 +123,8 @@
     (make-async-reader (as-url-or-file s) opts))
   (make-writer [s opts]
     (make-writer (as-url-or-file s) opts))
+  (make-async-writer [s opts]
+    (make-async-writer (as-url-or-file s) opts))
   (make-input-stream [s opts]
     (make-input-stream (as-file s) opts))
   (make-output-stream [s opts]
@@ -128,7 +134,7 @@
   (make-reader [file opts]
     (-file-reader-open *io-bindings* (:path file) (:encoding opts)))
   (make-async-reader [file opts]
-    (-file-async-reader-open *io-bindings* (:path file) (:encoding opts)))
+    (-async-file-reader-open *io-bindings* (:path file) (:encoding opts)))
   (make-writer [file opts]
     ; TODO
     )
