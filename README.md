@@ -2,6 +2,17 @@
 
 A set of host abstractions mimicking similar facilities available in Clojure for I/O, shell access, _etc_., along with mechanisms to bind the abstractions to host-specific implementations.
 
+# Architectural Thoughts
+
+cljs-node-io has a pretty good thought on using channels for async/io as an abstraction over the evented process.
+
+cljs-node-io is built with the jvm hosted cljs, and uses a promise-chan from core.async, which takes only a single value and returns that value over and over again.
+
+I suspect it's because the file reading utilities assume you can read the whole file into memory, and if not you should be using streams.
+
+1. Use a dynamic variable that is referenced throughout the library. This holds the host implementations and makes using them straightforward
+2. 
+
 ## Usage
 
 Here is an example using Abio with [Node bindings](https://github.com/abiocljs/abio-node):

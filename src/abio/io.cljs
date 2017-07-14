@@ -8,9 +8,12 @@
     (goog.string StringBuffer)
     (goog Uri)))
 
+;; XXX: Why does this exist?
 (defprotocol IBindings
+  (-path-sep [this])
   (-directory? [this f])
   (-list-files [this d])
+  (-async-list-files [this d])
   (-delete-file [this f])
   (-file-reader-open [this path encoding])
   (-async-file-reader-open [this path encoding])
@@ -22,9 +25,13 @@
     :dynamic true}
   *in*)
 
+
+; Protocols (a.k.a if something implements a protocol, it can do the following)
+;; How to close a thing
 (defprotocol IClosable
   (-close [this]))
 
+;; Sync/Async Writer
 (defprotocol IWriter
   "Protocol for writing."
   (-write [this] "Writes output to a file."))
@@ -33,22 +40,28 @@
   "Protocol for asynchronous writing."
   (-write [this] "Returns a channel that eventually may contain an error, or nothing, depending on the outcome of the write."))
 
+;; Sync/Async Reader
 (defprotocol IReader
   "Protocol for reading."
   (-read [this] "Returns available characters as a string or nil if EOF."))
 
+(defprotocol IAsyncReader
+  "Protocol for asynchronous reading."
+  (-read [this]
+    "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
+
+;; Sync/Async Buffered Reader
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
   (-read-line [this] "Reads the next line."))
 
-(defprotocol IAsyncReader
-  "Protocol for asynchronous reading."
-  (-read [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
-
 (defprotocol IAsyncBufferedReader
   "Protocol for asynchronously reading line-based content."
-  (-read-line [this] "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
+  (-read-line [this]
+    "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
 
+;; Streams
+;; TODO: implement async version?
 (defprotocol IInputStream
   "Protocol for reading binary data."
   (-read-bytes [this] "Returns available bytes as an array of unsigned numbers or nil if EOF."))
@@ -59,6 +72,7 @@
 
   (-flush-bytes [this] "Flushes output."))
 
+;; Coerce between a url and a file
 (defprotocol Coercions
   "Coerce between various 'resource-namish' things."
   (as-file [x] "Coerce argument to a File.")
@@ -83,6 +97,8 @@
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
+;; Concrete implementation of a File with Protocols defined
+;; Here we abstract on the base class that there's a toString function
 (defrecord File [path]
   Object
   (toString [_] path))
@@ -97,6 +113,9 @@
     (.setPath uri)
     (.setQuery query-string true)))
 
+;; Given some protocol Foo, you can deftype or defrecord a class and have it implement concrete
+;; versions of Foo, OR you can extend-protocol Foo for those specific classes
+;; Any nil, string, or File now supports as-file/as-url
 (extend-protocol Coercions
   nil
   (as-file [_] nil)
@@ -115,6 +134,7 @@
     (as-url f)
     (as-file f)))
 
+;; Now string and File have implementations of IOFactory, 
 (extend-protocol IOFactory
   string
   (make-reader [s opts]
@@ -145,6 +165,7 @@
     ; TODO
     )
 
+  ;; XXX: does this need to be "Object"?
   default
   (make-reader [x _]
     (if (satisfies? IReader x)
@@ -163,6 +184,7 @@
       x
       (throw (ex-info (str "Can't make an output stream from " x) {})))))
 
+;; Helper/Constructor functions
 (defn reader
   "Attempts to coerce its argument into an open IBufferedReader."
   [x & opts]
@@ -188,7 +210,10 @@
   [x & opts]
   (make-output-stream x (when opts (apply hash-map opts))))
 
-(def path-separator "/")
+(defn path-separator
+  "Returns the path separator for the system."
+  []
+  (-path-sep *io-bindings*))
 
 (defn file
   "Returns a File for given path.  Multiple-arg
@@ -197,7 +222,7 @@
   ([path]
    (->File path))
   ([parent & more]
-   (->File (apply str parent (interleave (repeat path-separator) more)))))
+   (->File (apply str parent (interleave (repeat (path-separator)) more)))))
 
 (defn delete-file
   "Delete file f."
