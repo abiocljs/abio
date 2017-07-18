@@ -34,31 +34,17 @@
 ;; Sync/Async Writer
 (defprotocol IWriter
   "Protocol for writing."
-  (-write [this] "Writes output to a file."))
-
-(defprotocol IAsyncWriter
-  "Protocol for asynchronous writing."
-  (-write [this] "Returns a channel that eventually may contain an error, or nothing, depending on the outcome of the write."))
+  (-write [this output] "Writes output to a file."))
 
 ;; Sync/Async Reader
 (defprotocol IReader
   "Protocol for reading."
-  (-read [this] "Returns available characters as a string or nil if EOF."))
-
-(defprotocol IAsyncReader
-  "Protocol for asynchronous reading."
-  (-read [this]
-    "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
+  (-read [this] [this channel] "Returns available characters as a string or nil if EOF."))
 
 ;; Sync/Async Buffered Reader
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
-  (-read-line [this] "Reads the next line."))
-
-(defprotocol IAsyncBufferedReader
-  "Protocol for asynchronously reading line-based content."
-  (-read-line [this]
-    "Returns a channel that will eventually contain the available characters as a string or nil if EOF."))
+  (-read-line [this] [this channel]"Reads the next line."))
 
 ;; Streams
 ;; TODO: implement async version?
@@ -92,8 +78,8 @@
     reader, writer, input-stream, and output-stream."
   (make-reader [x opts] "Creates an IReader. See also IOFactory docs.")
   (make-writer [x opts] "Creates an IWriter. See also IOFactory docs.")
-  (make-async-reader [x opts] "Creates an IAsyncReader. See also IOFactory docs.")
-  (make-async-writer [x opts] "Creates an IAsyncWriter. See also IOFactory docs.")
+  (make-async-reader [x opts] "Creates an asynchronous IBufferedReader. See also IOFactory docs.")
+  (make-async-writer [x opts] "Creates an asynchronous IWriter. See also IOFactory docs.")
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
@@ -171,6 +157,9 @@
     (if (satisfies? IReader x)
       x
       (throw (ex-info (str "Can't make a reader from " x) {}))))
+  ;; TODO I'm not sure I care about async specific errors, though maybe I should
+  (make-async-reader [x _]
+    (make-reader x _))
   (make-writer [x _] nil
     (if (satisfies? IWriter x)
       x
