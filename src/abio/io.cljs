@@ -15,6 +15,8 @@
   (-list-files [this d])
   (-async-list-files [this d])
   (-delete-file [this f])
+  (-file-writer-open [this path encoding options])
+  (-async-file-writer-open [this path encoding options])
   (-file-reader-open [this path encoding])
   (-async-file-reader-open [this path encoding])
   (-file-reader-read [this reader])
@@ -34,7 +36,12 @@
 ;; Sync/Async Writer
 (defprotocol IWriter
   "Protocol for writing."
-  (-write [this output] "Writes output to a file."))
+  (-write [this output] [this output channel] "Writes output to a file."))
+
+(defprotocol IBufferedWriter
+  "Protocol for writing buffered content."
+  (-buffered-write [this output] [this output channel] "Writes output to a file with buffering.")
+  (-flush [this] [this channel] "Flush whatever data is currently in the buffer."))
 
 ;; Sync/Async Reader
 (defprotocol IReader
@@ -142,8 +149,9 @@
   (make-async-reader [file opts]
     (-async-file-reader-open *io-bindings* (:path file) (:encoding opts)))
   (make-writer [file opts]
-    ; TODO
-    )
+    (-file-writer-open *io-bindings* (:path file) (:encoding opts) opts))
+  (make-async-writer [file opts]
+    (-async-file-writer-open *io-bindings* (:path file) (:encoding opts) opts))
   (make-input-stream [file opts]
     ; TODO
     )
@@ -188,6 +196,12 @@
   "Attempts to coerce its argument into an open IWriter."
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
+
+(defn async-writer
+  ;; TODO: IAsyncWriter isn't a protocol anymore
+  "Attempts to coerce its argument into an open IAsyncWriter."
+  [x & opts]
+  (make-async-writer x (when opts (apply hash-map opts))))
 
 (defn input-stream
   "Attempts to coerce its argument into an open IInputStream."
