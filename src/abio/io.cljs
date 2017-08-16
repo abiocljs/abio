@@ -38,11 +38,6 @@
   "Protocol for writing."
   (-write [this output] [this output channel] "Writes output to a file."))
 
-(defprotocol IBufferedWriter
-  "Protocol for writing buffered content."
-  (-buffered-write [this output] [this output channel] "Writes output to a file with buffering.")
-  (-flush [this] [this channel] "Flush whatever data is currently in the buffer."))
-
 ;; Sync/Async Reader
 (defprotocol IReader
   "Protocol for reading."
