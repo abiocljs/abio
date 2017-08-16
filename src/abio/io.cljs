@@ -34,7 +34,9 @@
   (-close [this]))
 
 ;; Sync/Async Writer
-(defprotocol IWriter
+;; XXX: I had to change this from IWriter to IAbioWriter because the compiled js code would reference
+;;      cljs.core/IWriter's `-write` method instead of the one defined here. I'm not sure why that is, though...
+(defprotocol IAbioWriter
   "Protocol for writing."
   (-write [this output] [this output channel] "Writes output to a file."))
 
@@ -79,9 +81,9 @@
     Callers should generally prefer the higher level API provided by
     reader, writer, input-stream, and output-stream."
   (make-reader [x opts] "Creates an IReader. See also IOFactory docs.")
-  (make-writer [x opts] "Creates an IWriter. See also IOFactory docs.")
+  (make-writer [x opts] "Creates an IAbioWriter. See also IOFactory docs.")
   (make-async-reader [x opts] "Creates an asynchronous IBufferedReader. See also IOFactory docs.")
-  (make-async-writer [x opts] "Creates an asynchronous IWriter. See also IOFactory docs.")
+  (make-async-writer [x opts] "Creates an asynchronous IAbioWriter. See also IOFactory docs.")
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
@@ -164,7 +166,7 @@
   (make-async-reader [x _]
     (make-reader x _))
   (make-writer [x _] nil
-    (if (satisfies? IWriter x)
+    (if (satisfies? IAbioWriter x)
       x
       (throw (ex-info (str "Can't make a writer from " x) {}))))
   (make-input-stream [x _]
@@ -188,7 +190,7 @@
   (make-async-reader x (when opts (apply hash-map opts))))
 
 (defn writer
-  "Attempts to coerce its argument into an open IWriter."
+  "Attempts to coerce its argument into an open IAbioWriter."
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
 
