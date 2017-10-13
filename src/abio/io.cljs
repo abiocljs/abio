@@ -1,32 +1,40 @@
 (ns abio.io
   (:require-macros
-    [abio.io :refer [with-open]])
+   [abio.io :refer [with-open]])
   (:require
-    [abio.core :refer [*io-bindings*]]
-    [clojure.string :as string])
+   [abio.core :refer [*io-bindings*]]
+   [clojure.string :as string])
   (:import
-    (goog.string StringBuffer)
-    (goog Uri)))
+   (goog.string StringBuffer)
+   (goog Uri)))
+
+;; We default to buffered writers/readers/streams here; see abio.io.unbuffered for unbuffered versions
+;; TODO that's not actually written yet.
 
 ;; XXX: Why does this exist?
+;;; What methods does a host have to implement to do I/O things?
+;;; Hierarchy is: Functions farther down define the programmer interaction
+;;;  which then call IOFactory methods,
+;;;  which then call these IBindings methods on `*io-bindings*`
+;;;  which are the host implementations, defined in the host projects
+;;;  The protocols defined below, before IOFactory, are the things the host will extend with Records
 (defprotocol IBindings
   (-path-sep [this])
   (-directory? [this f])
   (-list-files [this d])
-  (-async-list-files [this d])
+  (-async-list-files [this d]) ;; TODO: should this be in the shell ns?
   (-delete-file [this f])
   (-file-writer-open [this path encoding options])
   (-async-file-writer-open [this path encoding options])
   (-file-reader-open [this path encoding])
-  (-async-file-reader-open [this path encoding])
-  (-file-reader-read [this reader])
-  (-file-reader-close [this reader]))
+  (-async-file-reader-open [this path encoding]))
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
     :dynamic true}
   *in*)
 
+;;; TODO What kind of functions can we expect for I/O?
 
 ; Protocols (a.k.a if something implements a protocol, it can do the following)
 ;; How to close a thing
@@ -41,11 +49,23 @@
   (-write [this output] [this output channel] "Writes output to a file."))
 
 ;; Sync/Async Reader
+;; TODO An unbuffered reader is (effectively) meaningless on node/Lumo, and possibly also
+;; effectively meaningless on Planck as well.
+;; As such, I want to focus first on buffered readers/writers/streams, then tackle
+;; unbuffered things later. I suspect they are a special case unlikely to come up often.
+;;
+;; In fact, clojure.java.io just defines protocols to *create* readers/writers/streams,
+;; completely leaving out anything for how to interact with them (though the default is to
+;; create buffered things). So I guess that's a pretty huge difference here, and maybe we
+;; strike a new path?
 (defprotocol IReader
   "Protocol for reading."
   (-read [this] [this channel] "Returns available characters as a string or nil if EOF."))
 
 ;; Sync/Async Buffered Reader
+;; Honestly, I don't think this should be included, as buffered vs.
+;; unbuffered is an implementation detail, and a hold over from clojure.java.io
+;; TODO remove this and migrate every implementation over to IReader
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
   (-read-line [this] [this channel]"Reads the next line."))
@@ -124,7 +144,9 @@
     (as-url f)
     (as-file f)))
 
-;; Now string and File have implementations of IOFactory, 
+;; TODO Add an `encoding` function that defaults the encoding to `"UTF8"`
+
+;; Now string and File have implementations of IOFactory,
 (extend-protocol IOFactory
   string
   (make-reader [s opts]
@@ -255,6 +277,19 @@
               (-list-files *io-bindings* (:path d))))
     (as-file dir)))
 
+;; XXX Passing this a string path and opts fails, but passing an existing BufferedReader works
+;;  passing an existing BufferedReader probably works because it's already had time to prime the pump
+;; (defn waittest [ms]
+;;   (let [br (io/reader testpath :encoding "UTF8") ; you have to define testpath first
+;;         wait-fn #(do (println (io/-read-line br))(io/-close br))]
+;;     (js/setTimeout wait-fn ms)))
+;; If you wait 3 milliseconds, then this works properly. Since `readable.read` will return `null`/`nil`
+;; if the buffer is empty when you call `read`, I'm assuming this has to do with the time it takes to
+;; set up the stream and get everything primed
+;;  This is probably a node specific thing, but it definitely impedes the generalization of something
+;;  like `slurp`. In effect, non-async js code isn't idiomatic in node, and you generally have to bend over
+;;  backwards to get it to work. This complicates things here, since you'd normally attach a listener
+;;  to the `data` event from a stream and work off the data
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
   See abio.io/reader for a complete list of supported arguments."
@@ -267,6 +302,12 @@
           (do
             (.append sb s)
             (recur (-read r))))))))
+
+;; XXX Actually, this isn't possible without taking on an async lib and enforcing async semantics. Does that matter?
+#_(defn aslurp
+    "Opens a reader on f and returns a channel that will eventually receive the contents of the file."
+    ([f opts]
+     (aslurp f opts (async/chan))))
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content, then

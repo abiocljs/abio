@@ -11,7 +11,9 @@ cljs-node-io is built with the jvm hosted cljs, and uses a promise-chan from cor
 I suspect it's because the file reading utilities assume you can read the whole file into memory, and if not you should be using streams.
 
 1. Use a dynamic variable that is referenced throughout the library. This holds the host implementations and makes using them straightforward
-2. 
+2. Define Protocols for Reading/Writing/Streaming
+3. Define a Bindings protocol for creating and interacting with the host implementation to construct the records that implement the R/W/S protocols from #2
+4. Define helper functions to tie into the host implementation
 
 ## Usage
 
