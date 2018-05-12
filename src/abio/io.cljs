@@ -74,11 +74,12 @@
   (-read-line [this] [this callback] "Reads the next line."))
 
 ;; Streams
-;; TODO: implement async version?
+;; TODO: What does this mean for a platform that doesn't support "bytes"?
 (defprotocol IInputStream
   "Protocol for reading binary data."
   (-read-bytes [this] "Returns available bytes as an array of unsigned numbers or nil if EOF."))
 
+;; TODO: Same question, re: platform support for bytes (over string representations of bytes)
 (defprotocol IOutputStream
   "Protocol for writing binary data."
   (-write-bytes [this byte-array] "Writes byte array.")
@@ -247,24 +248,29 @@
   "A tree seq on files"
   [dir]
   (tree-seq
-    (fn [f] (-directory? *io-bindings* (:path f)))
-    (fn [d] (map as-file
-              (-list-files *io-bindings* (:path d))))
-    (as-file dir)))
+   (fn [f] (-directory? *io-bindings* (:path f)))
+   (fn [d] (map as-file
+                (-list-files *io-bindings* (:path d))))
+   (as-file dir)))
 
 ;; XXX Passing this a string path and opts fails, but passing an existing BufferedReader works
 ;;  passing an existing BufferedReader probably works because it's already had time to prime the pump
+;;
 ;; (defn waittest [ms]
 ;;   (let [br (io/reader testpath :encoding "UTF8") ; you have to define testpath first
 ;;         wait-fn #(do (println (io/-read-line br))(io/-close br))]
 ;;     (js/setTimeout wait-fn ms)))
-;; If you wait 3 milliseconds, then this works properly. Since `readable.read` will return `null`/`nil`
-;; if the buffer is empty when you call `read`, I'm assuming this has to do with the time it takes to
-;; set up the stream and get everything primed
-;;  This is probably a node specific thing, but it definitely impedes the generalization of something
-;;  like `slurp`. In effect, non-async js code isn't idiomatic in node, and you generally have to bend over
-;;  backwards to get it to work. This complicates things here, since you'd normally attach a listener
-;;  to the `data` event from a stream and work off the data
+;;
+;; If you wait 3 milliseconds, then this works properly. Since `readable.read`
+;; will return `null`/`nil` if the buffer is empty when you call `read`, I'm
+;; assuming this has to do with the time it takes to set up the stream and get
+;; everything primed
+;;
+;; This is probably a node specific thing, but it definitely impedes the
+;; generalization of something like `slurp`. In effect, non-async js code isn't
+;; idiomatic in node, and you generally have to bend over backwards to get it to
+;; work. This complicates things here, since you'd normally attach a listener to
+;; the `data` event from a stream and work off the data
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
   See abio.io/reader for a complete list of supported arguments."
