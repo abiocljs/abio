@@ -19,14 +19,18 @@
 ;;;  which are the host implementations, defined in the host projects
 ;;;  The protocols defined below, before IOFactory, are the things the host will extend with Records
 (defprotocol IBindings
+  ;; XXX: These act directly on the host specific Bindings record
   (-path-sep [this])
   (-directory? [this f])
   (-list-files [this d] [this d callback])
   (-delete-file [this f])
+
+  ;; TODO; is it even meaningful to differ readers and writers when they take
+  ;; the same arg list? Is there some sensible merged idea?
+  ;;
+  ;; XXX: these create records that have their own methods
   (-file-writer-open [this path options])
-  (-async-file-writer-open [this path options])
-  (-file-reader-open [this path options])
-  (-async-file-reader-open [this path options]))
+  (-file-reader-open [this path options]))
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
@@ -101,8 +105,6 @@
     reader, writer, input-stream, and output-stream."
   (make-reader [x opts] "Creates an IReader. See also IOFactory docs.")
   (make-writer [x opts] "Creates an IAbioWriter. See also IOFactory docs.")
-  (make-async-reader [x opts] "Creates an asynchronous IBufferedReader. See also IOFactory docs.")
-  (make-async-writer [x opts] "Creates an asynchronous IAbioWriter. See also IOFactory docs.")
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
@@ -150,12 +152,8 @@
   string
   (make-reader [s opts]
     (make-reader (as-url-or-file s) opts))
-  (make-async-reader [s opts]
-    (make-async-reader (as-url-or-file s) opts))
   (make-writer [s opts]
     (make-writer (as-url-or-file s) opts))
-  (make-async-writer [s opts]
-    (make-async-writer (as-url-or-file s) opts))
   (make-input-stream [s opts]
     (make-input-stream (as-file s) opts))
   (make-output-stream [s opts]
@@ -164,12 +162,8 @@
   File
   (make-reader [file opts]
     (-file-reader-open *io-bindings* (:path file) opts))
-  (make-async-reader [file opts]
-    (-async-file-reader-open *io-bindings* (:path file) opts))
   (make-writer [file opts]
     (-file-writer-open *io-bindings* (:path file) opts))
-  (make-async-writer [file opts]
-    (-async-file-writer-open *io-bindings* (:path file) opts))
   (make-input-stream [file opts]) ;; TODO
   (make-output-stream [file opts]) ; TODO
 
@@ -179,9 +173,6 @@
     (if (satisfies? IReader x)
       x
       (throw (ex-info (str "Can't make a reader from " x) {}))))
-  ;; TODO I'm not sure I care about async specific errors, though maybe I should
-  (make-async-reader [x _]
-    (make-reader x _))
   (make-writer [x _] nil
     (if (satisfies? IAbioWriter x)
       x
@@ -201,21 +192,10 @@
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
-(defn async-reader
-  [x & opts]
-  (make-async-reader x (when opts (apply hash-map opts))))
-  "Attempts to coerce its argument into an open IReader."
-
 (defn writer
   "Attempts to coerce its argument into an open IAbioWriter."
   [x & opts]
   (make-writer x (when opts (apply hash-map opts))))
-
-(defn async-writer
-  ;; TODO: IAsyncWriter isn't a protocol anymore
-  "Attempts to coerce its argument into an open IAbioWriter."
-  [x & opts]
-  (make-async-writer x (when opts (apply hash-map opts))))
 
 (defn input-stream
   "Attempts to coerce its argument into an open IInputStream."
