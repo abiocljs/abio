@@ -24,10 +24,10 @@
   (-list-files [this d])
   (-async-list-files [this d]) ;; TODO: should this be in the shell ns?
   (-delete-file [this f])
-  (-file-writer-open [this path encoding options])
-  (-async-file-writer-open [this path encoding options])
-  (-file-reader-open [this path encoding])
-  (-async-file-reader-open [this path encoding]))
+  (-file-writer-open [this path options])
+  (-async-file-writer-open [this path options])
+  (-file-reader-open [this path options])
+  (-async-file-reader-open [this path options]))
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
@@ -46,7 +46,7 @@
 ;;      cljs.core/IWriter's `-write` method instead of the one defined here. I'm not sure why that is, though...
 (defprotocol IAbioWriter
   "Protocol for writing."
-  (-write [this output] [this output channel] "Writes output to a file."))
+  (-write [this output] [this output callback] "Writes output to a file."))
 
 ;; Sync/Async Reader
 ;; TODO An unbuffered reader is (effectively) meaningless on node/Lumo, and possibly also
@@ -60,7 +60,7 @@
 ;; strike a new path?
 (defprotocol IReader
   "Protocol for reading."
-  (-read [this] [this channel] "Returns available characters as a string or nil if EOF."))
+  (-read [this] [this callback] "Returns available characters as a string or nil if EOF."))
 
 ;; Sync/Async Buffered Reader
 ;; Honestly, I don't think this should be included, as buffered vs.
@@ -68,7 +68,7 @@
 ;; TODO remove this and migrate every implementation over to IReader
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
-  (-read-line [this] [this channel]"Reads the next line."))
+  (-read-line [this] [this callback] "Reads the next line."))
 
 ;; Streams
 ;; TODO: implement async version?
@@ -164,19 +164,15 @@
 
   File
   (make-reader [file opts]
-    (-file-reader-open *io-bindings* (:path file) (:encoding opts)))
+    (-file-reader-open *io-bindings* (:path file) opts))
   (make-async-reader [file opts]
-    (-async-file-reader-open *io-bindings* (:path file) (:encoding opts)))
+    (-async-file-reader-open *io-bindings* (:path file) opts))
   (make-writer [file opts]
-    (-file-writer-open *io-bindings* (:path file) (:encoding opts) opts))
+    (-file-writer-open *io-bindings* (:path file) opts))
   (make-async-writer [file opts]
-    (-async-file-writer-open *io-bindings* (:path file) (:encoding opts) opts))
-  (make-input-stream [file opts]
-    ; TODO
-    )
-  (make-output-stream [file opts]
-    ; TODO
-    )
+    (-async-file-writer-open *io-bindings* (:path file) opts))
+  (make-input-stream [file opts]) ;; TODO
+  (make-output-stream [file opts]) ; TODO
 
   ;; XXX: does this need to be "Object"?
   default
@@ -207,9 +203,9 @@
   (make-reader x (when opts (apply hash-map opts))))
 
 (defn async-reader
-  "Attempts to coerce its argument into an open IAsyncReader."
   [x & opts]
   (make-async-reader x (when opts (apply hash-map opts))))
+  "Attempts to coerce its argument into an open IReader."
 
 (defn writer
   "Attempts to coerce its argument into an open IAbioWriter."
@@ -218,7 +214,7 @@
 
 (defn async-writer
   ;; TODO: IAsyncWriter isn't a protocol anymore
-  "Attempts to coerce its argument into an open IAsyncWriter."
+  "Attempts to coerce its argument into an open IAbioWriter."
   [x & opts]
   (make-async-writer x (when opts (apply hash-map opts))))
 
