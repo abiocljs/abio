@@ -21,8 +21,7 @@
 (defprotocol IBindings
   (-path-sep [this])
   (-directory? [this f])
-  (-list-files [this d])
-  (-async-list-files [this d]) ;; TODO: should this be in the shell ns?
+  (-list-files [this d] [this d callback])
   (-delete-file [this f])
   (-file-writer-open [this path options])
   (-async-file-writer-open [this path options])
