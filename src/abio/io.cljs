@@ -8,9 +8,6 @@
    (goog.string StringBuffer)
    (goog Uri)))
 
-;; We default to buffered writers/readers/streams here; see abio.io.unbuffered for unbuffered versions
-;; TODO that's not actually written yet.
-
 ;; XXX: Why does this exist?
 ;;; What methods does a host have to implement to do I/O things?
 ;;; Hierarchy is: Functions farther down define the programmer interaction
@@ -19,74 +16,49 @@
 ;;;  which are the host implementations, defined in the host projects
 ;;;  The protocols defined below, before IOFactory, are the things the host will extend with Records
 (defprotocol IBindings
-  ;; XXX: These act directly on the host specific Bindings record
-  (-path-sep [this])
-  (-directory? [this f])
-  (-list-files [this d] [this d callback])
-  (-delete-file [this f])
-
-  ;; TODO; is it even meaningful to differ readers and writers when they take
-  ;; the same arg list? Is there some sensible merged idea?
-  ;;
-  ;; XXX: these create records that have their own methods
-  (-file-writer-open [this path options])
-  (-file-reader-open [this path options]))
+  "This is the top level protocol that defines how hosts handle high-level IO and
+  reader/writer/stream creation."
+  (-path-sep [this] "Return the path separator for the current host.")
+  (-directory? [this f] "Is `f` a directory?")
+  (-list-files
+    [this d] [this d callback] "List the files in directory `d`. Pass a callback for asynchronicity.")
+  (-delete-file [this f] "Delete the file at path `f`")
+  (-file-writer-open [this path options] "Create a file writer.")
+  (-file-reader-open [this path options] "Create a file reader."))
 
 (def
   ^{:doc "An abio.io/IReader representing standard input for read operations."
     :dynamic true}
   *in*)
 
-;;; TODO What kind of functions can we expect for I/O?
-
-; Protocols (a.k.a if something implements a protocol, it can do the following)
-;; How to close a thing
 (defprotocol IClosable
   (-close [this]))
 
-;; Sync/Async Writer
-;; XXX: I had to change this from IWriter to IAbioWriter because the compiled js code would reference
-;;      cljs.core/IWriter's `-write` method instead of the one defined here. I'm not sure why that is, though...
+;; XXX: I had to change this from IWriter to IAbioWriter because the compiled js
+;;      code would reference cljs.core/IWriter's `-write` method instead of the
+;;      one defined here. I'm not sure why that is, though...
 (defprotocol IAbioWriter
   "Protocol for writing."
-  (-write [this output] [this output callback] "Writes output to a file."))
+  (-write [this output] [this output callback] "Writes output to a resource."))
 
-;; Sync/Async Reader
-;; TODO An unbuffered reader is (effectively) meaningless on node/Lumo, and possibly also
-;; effectively meaningless on Planck as well.
-;; As such, I want to focus first on buffered readers/writers/streams, then tackle
-;; unbuffered things later. I suspect they are a special case unlikely to come up often.
-;;
-;; In fact, clojure.java.io just defines protocols to *create* readers/writers/streams,
-;; completely leaving out anything for how to interact with them (though the default is to
-;; create buffered things). So I guess that's a pretty huge difference here, and maybe we
-;; strike a new path?
 (defprotocol IReader
   "Protocol for reading."
   (-read [this] [this callback] "Returns available characters as a string or nil if EOF."))
 
-;; Sync/Async Buffered Reader
-;; Honestly, I don't think this should be included, as buffered vs.
-;; unbuffered is an implementation detail, and a hold over from clojure.java.io
-;; TODO remove this and migrate every implementation over to IReader
 (defprotocol IBufferedReader
   "Protocol for reading line-based content."
   (-read-line [this] [this callback] "Reads the next line."))
 
-;; Streams
-;; TODO: What does this mean for a platform that doesn't support "bytes"?
 (defprotocol IInputStream
   "Protocol for reading binary data."
   (-read-bytes [this] "Returns available bytes as an array of unsigned numbers or nil if EOF."))
 
-;; TODO: Same question, re: platform support for bytes (over string representations of bytes)
 (defprotocol IOutputStream
   "Protocol for writing binary data."
   (-write-bytes [this byte-array] "Writes byte array.")
 
   (-flush-bytes [this] "Flushes output."))
 
-;; Coerce between a url and a file
 (defprotocol Coercions
   "Coerce between various 'resource-namish' things."
   (as-file [x] "Coerce argument to a File.")
@@ -109,8 +81,6 @@
   (make-input-stream [x opts] "Creates an IInputStream. See also IOFactory docs.")
   (make-output-stream [x opts] "Creates an IOutputStream. See also IOFactory docs."))
 
-;; Concrete implementation of a File with Protocols defined
-;; Here we abstract on the base class that there's a toString function
 (defrecord File [path]
   Object
   (toString [_] path))
@@ -125,9 +95,6 @@
     (.setPath uri)
     (.setQuery query-string true)))
 
-;; Given some protocol Foo, you can deftype or defrecord a class and have it implement concrete
-;; versions of Foo, OR you can extend-protocol Foo for those specific classes
-;; Any nil, string, or File now supports as-file/as-url
 (extend-protocol Coercions
   nil
   (as-file [_] nil)
@@ -146,9 +113,6 @@
     (as-url f)
     (as-file f)))
 
-;; TODO Add an `encoding` function that defaults the encoding to `"UTF8"`
-
-;; Now string and File have implementations of IOFactory,
 (extend-protocol IOFactory
   string
   (make-reader [s opts]
@@ -168,7 +132,6 @@
   (make-input-stream [file opts]) ;; TODO
   (make-output-stream [file opts]) ; TODO
 
-  ;; XXX: does this need to be "Object"?
   default
   (make-reader [x _]
     (if (satisfies? IReader x)
@@ -187,9 +150,8 @@
       x
       (throw (ex-info (str "Can't make an output stream from " x) {})))))
 
-;; Helper/Constructor functions
 (defn reader
-  "Attempts to coerce its argument into an open IBufferedReader."
+  "Attempts to coerce its argument into an open IReader."
   [x & opts]
   (make-reader x (when opts (apply hash-map opts))))
 
@@ -209,14 +171,15 @@
   (make-output-stream x (when opts (apply hash-map opts))))
 
 (defn path-separator
-  "Returns the path separator for the system."
+  "Returns the path separator for the host system."
   []
   (-path-sep *io-bindings*))
 
 (defn file
-  "Returns a File for given path.  Multiple-arg
-   versions treat the first argument as parent and subsequent args as
-   children relative to the parent."
+  "Returns a File for given path.
+
+  Multiple-arg versions treat the first argument as parent and subsequent args
+  as children relative to the parent."
   ([path]
    (->File path))
   ([parent & more]
@@ -253,8 +216,8 @@
                 (-list-files *io-bindings* (:path d))))
    (as-file dir)))
 
-;; XXX Passing this a string path and opts fails, but passing an existing BufferedReader works
-;;  passing an existing BufferedReader probably works because it's already had time to prime the pump
+;; XXX Passing this a string path and opts fails, but passing an existing
+;;  BufferedReader works.
 ;;
 ;; (defn waittest [ms]
 ;;   (let [br (io/reader testpath :encoding "UTF8") ; you have to define testpath first
@@ -262,15 +225,19 @@
 ;;     (js/setTimeout wait-fn ms)))
 ;;
 ;; If you wait 3 milliseconds, then this works properly. Since `readable.read`
+;; -- see https://nodejs.org/api/stream.html#stream_readable_read_size --
 ;; will return `null`/`nil` if the buffer is empty when you call `read`, I'm
 ;; assuming this has to do with the time it takes to set up the stream and get
-;; everything primed
+;; everything primed.
 ;;
-;; This is probably a node specific thing, but it definitely impedes the
-;; generalization of something like `slurp`. In effect, non-async js code isn't
-;; idiomatic in node, and you generally have to bend over backwards to get it to
-;; work. This complicates things here, since you'd normally attach a listener to
-;; the `data` event from a stream and work off the data
+;; XXX This test was done with Node `ReadableStream`s.
+;; If we want to use streams in Lumo/Node, we need to attach to the events
+;; emitted by the streams. As such, it's not feasible to make synchronous
+;; streams (though maybe with async/await...) on a Node host.
+;;
+;; XXX Also, this will loop forever with the current `abio.node` reader
+;; implementation, since the `fs.readSync` function will return the contents of
+;; the file each time its called, never returning `nil`.
 (defn slurp
   "Opens a reader on f and reads all its contents, returning a string.
   See abio.io/reader for a complete list of supported arguments."
@@ -283,12 +250,6 @@
           (do
             (.append sb s)
             (recur (-read r))))))))
-
-;; XXX Actually, this isn't possible without taking on an async lib and enforcing async semantics. Does that matter?
-#_(defn aslurp
-    "Opens a reader on f and returns a channel that will eventually receive the contents of the file."
-    ([f opts]
-     (aslurp f opts (async/chan))))
 
 (defn spit
   "Opposite of slurp.  Opens f with writer, writes content, then
