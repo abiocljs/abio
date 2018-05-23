@@ -8,13 +8,6 @@
    (goog.string StringBuffer)
    (goog Uri)))
 
-;; XXX: Why does this exist?
-;;; What methods does a host have to implement to do I/O things?
-;;; Hierarchy is: Functions farther down define the programmer interaction
-;;;  which then call IOFactory methods,
-;;;  which then call these IBindings methods on `*io-bindings*`
-;;;  which are the host implementations, defined in the host projects
-;;;  The protocols defined below, before IOFactory, are the things the host will extend with Records
 (defprotocol IBindings
   "This is the top level protocol that defines how hosts handle high-level IO and
   reader/writer/stream creation."
@@ -230,12 +223,12 @@
 ;; assuming this has to do with the time it takes to set up the stream and get
 ;; everything primed.
 ;;
-;; XXX This test was done with Node `ReadableStream`s.
-;; If we want to use streams in Lumo/Node, we need to attach to the events
-;; emitted by the streams. As such, it's not feasible to make synchronous
-;; streams (though maybe with async/await...) on a Node host.
+;; This test was done with Node `ReadableStream`s. If we want to use streams in
+;; Lumo/Node, we need to attach to the events emitted by the streams. As such,
+;; it's not feasible to make synchronous streams (though maybe with
+;; async/await...) on a Node host.
 ;;
-;; XXX Also, this will loop forever with the current `abio.node` reader
+;; Also, this will loop forever with the current `abio.node` reader
 ;; implementation, since the `fs.readSync` function will return the contents of
 ;; the file each time its called, never returning `nil`.
 (defn slurp
