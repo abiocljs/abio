@@ -1,4 +1,5 @@
 (ns abio.io
+  (:refer-clojure :exclude [-write])
   (:require-macros
    [abio.io :refer [with-open]])
   (:require
